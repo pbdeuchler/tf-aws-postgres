@@ -54,7 +54,7 @@ variable "ebs_az" {
 variable "use_eip" {
   type        = bool
   default     = false
-  description = "Whether to enable Elastic IP switching code in user-data on wg server startup. If true, eip_id must also be set to the ID of the Elastic IP."
+  description = "Please don't make your database publicly accessible"
 }
 
 variable "eip_id" {
