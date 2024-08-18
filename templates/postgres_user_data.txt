@@ -1,0 +1,45 @@
+#!/bin/bash -v
+
+apt update -y
+
+apt install unzip
+curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "/tmp/awscliv2.zip"
+unzip /tmp/awscliv2.zip -d /tmp
+./tmp/aws/install
+
+TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300"`
+INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
+aws ec2 attach-volume --volume-id ${ebs_volume_id} --instance-id $INSTANCE_ID --region us-east-2
+# TODO(pbd): handle unformatted volume
+mkdir /data
+mount /dev/nvme1n1 /data
+chown postgres:postgres /data
+
+if [ -n "${use_eip}" ]; then
+  export REGION=$(curl -fsq http://169.254.169.254/latest/meta-data/placement/availability-zone -H "X-aws-ec2-metadata-token: $TOKEN | sed 's/[a-z]$//')
+  aws --region $${REGION} ec2 associate-address --allocation-id ${eip_id} --instance-id $${INSTANCE_ID}
+  aws --region $${REGION} ec2 modify-instance-attribute --no-source-dest-check --instance-id $${INSTANCE_ID}
+fi
+
+apt install -y gnupg postgresql-common apt-transport-https lsb-release wget
+
+chmod 644 /etc/postgresql/${postgres_major_version}/main/postgresql.conf
+sed -i -e "s/.*data_directory.*/data_directory = \'\/data\'/" /etc/postgresql/${postgres_major_version}/main/postgresql.conf
+sed -i -e "s/.*listen_addresses.*/listen_addresses = \'*\'/" /etc/postgresql/${postgres_major_version}/main/postgresql.conf
+
+# we will rely on our AWS networking to pevent unauthorized access
+echo "host	all		all		0.0.0.0/0		scram-sha-256" >> /etc/postgresql/${postgres_major_version}/main/pg_hba.conf
+echo "host	all		all		::0/0		scram-sha-256" >> /etc/postgresql/${postgres_major_version}/main/pg_hba.conf
+
+
+if [ -n "${install_timescale}" ]; then
+  echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | tee /etc/apt/sources.list.d/timescaledb.list
+  wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg
+  apt update -y
+  apt install -y timescaledb-2-postgresql-${postgres_major_version} postgresql-client
+  sed -i -e "s/.*shared_preload_libraries.*/shared_preload_libraries = \'timescaledb\'/" /etc/postgresql/${postgres_major_version}/main/postgresql.conf
+  timescaledb-tune -yes
+fi
+
+systemctl restart postgresql
+systemctl status postgresql@${postgres_major_version}-main.service
