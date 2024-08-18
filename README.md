@@ -2,6 +2,8 @@
 
 A Terraform module to deploy a PostgreSQL server using an AWS autoscaling group.
 
+Note: Currently the first instance setup will partially fail since the EBS volume will not be formatted
+
 | Variable Name          | Type         | Default      | Description                                                                                                                                  |
 | ---------------------- | ------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ssh_key_id`           | string       | -            | A SSH public key ID to add to the VPN instance.                                                                                              |
