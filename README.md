@@ -1,6 +1,6 @@
 # tf-aws-postgres
 
-A Terraform module to deploy a PostgreSQL server using an AWS autoscaling group.
+A Terraform module to deploy a PostgreSQL server using an AWS autoscaling group. Not thoroughly tested, use at your own risk.
 
 Note: Currently the first instance setup will partially fail since the EBS volume will not be formatted
 

@@ -7,7 +7,7 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "/tmp/awscli
 unzip /tmp/awscliv2.zip -d /tmp
 ./tmp/aws/install
 
-TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300"`
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
 INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
 aws ec2 attach-volume --volume-id ${ebs_volume_id} --instance-id $INSTANCE_ID --region us-east-2
 # TODO(pbd): handle unformatted volume
@@ -17,8 +17,8 @@ chown postgres:postgres /data
 
 if [ -n "${use_eip}" ]; then
   export REGION=$(curl -fsq http://169.254.169.254/latest/meta-data/placement/availability-zone -H "X-aws-ec2-metadata-token: $TOKEN | sed 's/[a-z]$//')
-  aws --region $${REGION} ec2 associate-address --allocation-id ${eip_id} --instance-id $${INSTANCE_ID}
-  aws --region $${REGION} ec2 modify-instance-attribute --no-source-dest-check --instance-id $${INSTANCE_ID}
+  aws --region $REGION ec2 associate-address --allocation-id ${eip_id} --instance-id $INSTANCE_ID
+  aws --region $REGION ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE_ID
 fi
 
 apt install -y gnupg postgresql-common apt-transport-https lsb-release wget
